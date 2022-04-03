@@ -1,0 +1,89 @@
+---
+title: "RDD"
+author: "Dimuthu Ratnadiwakara"
+date: "4/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+rm(list=ls())
+library(data.table)
+library(lfe)
+library(ggplot2)
+library(stargazer)
+```
+
+
+```{r}
+mortality <- fread("https://raw.githubusercontent.com/dratnadiwakara/7750/main/mortality.csv")
+mortality[,binnedage:=round(age,1)]
+head(mortality)
+```
+
+
+```{r}
+		mortalitysummary = mortality[,.(deathrate=mean(deathrate)),by=binnedage]
+		
+		head(mortalitysummary)
+```
+
+```{r}
+ggplot(mortalitysummary,aes(x=binnedage,y=deathrate))+geom_point()
+```
+
+
+```{r}
+		mortalitysummary[,D_a:=ifelse(mortalitysummary$binnedage>=21,1,0)]
+		
+		regs = list()
+		regs[[1]] = lm(deathrate~D_a+binnedage,data=mortalitysummary)
+		stargazer(regs,type="text")
+```
+
+
+```{r}
+mortalitysummary[,predYlinear:=predict(regs[[1]],mortalitysummary)]
+		
+		ggplot(mortalitysummary)+geom_point(aes(x=binnedage,y=deathrate))+
+		geom_line(data=mortalitysummary[mortalitysummary$binnedage<21],aes(x=binnedage,y=predYlinear),color="red")+
+		geom_line(data=mortalitysummary[mortalitysummary$binnedage>=21],aes(x=binnedage,y=predYlinear),color="blue")
+```
+
+
+```{r}
+regs[[3]] = lm(deathrate~D_a+binnedage+I(binnedage^2)+I(binnedage^3),data=mortalitysummary)
+		
+		mortalitysummary[,predYpoly3:=predict(regs[[3]],mortalitysummary)]
+		
+		ggplot(mortalitysummary)+geom_point(aes(x=binnedage,y=deathrate))+
+		geom_line(data=mortalitysummary[mortalitysummary$binnedage<21],aes(x=binnedage,y=predYpoly3),color="red")+
+		geom_line(data=mortalitysummary[mortalitysummary$binnedage>=21],aes(x=binnedage,y=predYpoly3),color="blue")
+```
+
+
+
+
+```{r}
+regs[[4]] = lm(deathrate~D_a+D_a*binnedage+D_a*I(binnedage^2),data=mortalitysummary)
+		
+		mortalitysummary[,predYpoly2:=predict(regs[[4]],mortalitysummary)]
+		
+		ggplot(mortalitysummary)+geom_point(aes(x=binnedage,y=deathrate))+
+		geom_line(data=mortalitysummary[mortalitysummary$binnedage<21],aes(x=binnedage,y=predYpoly2),color="red")+
+		geom_line(data=mortalitysummary[mortalitysummary$binnedage>=21],aes(x=binnedage,y=predYpoly2),color="blue")
+```
+
+
+```{r}
+
+mortality[,D_a:=ifelse(binnedage>=21,1,0)]
+rd_reg <-  felm(deathrate~D_a+binnedage+I(binnedage^2)+I(binnedage^3),data=mortality)
+		
+stargazer(rd_reg,type="text",no.space = T)
+```
+
